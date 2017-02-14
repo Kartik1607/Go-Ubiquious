@@ -13,6 +13,7 @@ import android.graphics.Paint;
 import android.graphics.Rect;
 import android.graphics.Typeface;
 import android.graphics.drawable.Drawable;
+import android.os.AsyncTask;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Message;
@@ -147,9 +148,7 @@ public class MyFace extends CanvasWatchFaceService {
             paint_white = createBackGroundPaint(Color.WHITE);
             paint_blue = createBackGroundPaint(resources.getColor(R.color.colorPrimary));
 
-
-            currentBitmap = BitmapFactory.decodeResource(resources, R.drawable.ic_clear);
-
+            currentBitmap = null;
 
             initFormats();
 
@@ -212,7 +211,7 @@ public class MyFace extends CanvasWatchFaceService {
             super.onVisibilityChanged(visible);
 
             if (visible) {
-           //     mGoogleApiClient.connect();
+                client.connect();
 
                 registerReceiver();
                 mCalendar.setTimeZone(TimeZone.getDefault());
@@ -220,10 +219,10 @@ public class MyFace extends CanvasWatchFaceService {
             } else {
                 unregisterReceiver();
 
-//                if (mGoogleApiClient != null && mGoogleApiClient.isConnected()) {
-//                    Wearable.DataApi.removeListener(mGoogleApiClient, this);
-//                    mGoogleApiClient.disconnect();
-//                }
+                if (client != null &&client.isConnected()) {
+                    Wearable.DataApi.removeListener(client, this);
+                    client.disconnect();
+                }
             }
 
             updateTimer();
@@ -303,8 +302,8 @@ public class MyFace extends CanvasWatchFaceService {
         }
 
         private void drawTemp(Canvas canvas, Rect bounds) {
-            float temp = paint_temp.measureText(high + "-" + low);
-            canvas.drawText(high + "-" + low,bounds.centerX() - temp/2, bounds.bottom/10 * 4.5f , paint_temp);
+            float temp = paint_temp.measureText(high + " / " + low);
+            canvas.drawText(high + " / " + low,bounds.centerX() - temp/2, bounds.bottom/10 * 4.5f , paint_temp);
         }
 
         private void drawWeather(Canvas canvas, Rect bounds) {
@@ -314,7 +313,7 @@ public class MyFace extends CanvasWatchFaceService {
 
 
         private void drawImage(Canvas canvas, Rect bounds){
-            if(isInAmbientMode())
+            if(isInAmbientMode() || currentBitmap == null)
                 return;
 
             canvas.drawBitmap(currentBitmap,bounds.centerX() - currentBitmap.getWidth()/2 , bounds.bottom/ 10 * 0.5f ,null );
@@ -363,17 +362,17 @@ public class MyFace extends CanvasWatchFaceService {
 
         @Override
         public void onDataChanged(DataEventBuffer dataEventBuffer) {
-            Log.d("MY_APP","DATA NEW");
-            for (DataEvent event : dataEventBuffer) {
+            //Log.d("MY_APP","NEW FUCKING DATA");
+             for (DataEvent event : dataEventBuffer) {
                 if (event.getType() == DataEvent.TYPE_CHANGED) {
                     DataItem item = event.getDataItem();
                     if (item.getUri().getPath().compareTo(WEATHER) == 0) {
                         DataMap dataMap = DataMapItem.fromDataItem(item).getDataMap();
-                        high = dataMap.getInt(TEMP_HIGH) + "";
-                        low = dataMap.getInt(TEMP_LOW) + "";
+                        high = dataMap.getString(TEMP_HIGH);
+                        low = dataMap.getString(TEMP_LOW);
                         description = dataMap.getString(DESCRIPTION);
-                        currentBitmap = loadBitmapFromAsset(dataMap.getAsset(ICON));
-                        invalidate();
+                        new BitMapAsyncTask().execute(dataMap.getAsset(ICON));
+                        //Log.d("MY_APP", high + " " + low + " " + description);
                     }
                 }
             }
@@ -392,7 +391,18 @@ public class MyFace extends CanvasWatchFaceService {
                 return null;
             }
 
-            return BitmapFactory.decodeStream(assetInputStream);
+            Bitmap b = BitmapFactory.decodeStream(assetInputStream);
+            return Bitmap.createScaledBitmap(b,50,50,false);
+        }
+
+        public class BitMapAsyncTask extends AsyncTask<Asset, Void, Void>{
+
+            @Override
+            protected Void doInBackground(Asset... params) {
+                currentBitmap = loadBitmapFromAsset(params[0]);
+                invalidate();
+                return null;
+            }
         }
     }
 

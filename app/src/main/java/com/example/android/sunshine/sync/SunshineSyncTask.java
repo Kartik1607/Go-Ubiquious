@@ -203,15 +203,15 @@ public class SunshineSyncTask {
 
             PutDataMapRequest putDataMapRequest = PutDataMapRequest.create(WEATHER);
             DataMap map = putDataMapRequest.getDataMap();
-            map.putInt(TEMP_HIGH, high);
-            map.putInt(TEMP_LOW, low);
+            map.putString(TEMP_HIGH, SunshineWeatherUtils.formatTemperature(context, high));
+            map.putString(TEMP_LOW, SunshineWeatherUtils.formatTemperature(context, low));
             map.putString(DESCRIPTION, description);
             map.putAsset(ICON, createAssetFromBitmap(icon));
-            map.putDouble("timestamp",System.currentTimeMillis());
             Wearable.DataApi.putDataItem(client, putDataMapRequest.asPutDataRequest())
                     .setResultCallback(new ResultCallback<DataApi.DataItemResult>() {
                         @Override
                         public void onResult(@NonNull DataApi.DataItemResult dataItemResult) {
+                            client.disconnect();
                         }
                     });
 
